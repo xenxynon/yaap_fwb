@@ -428,7 +428,7 @@ object KeyguardBottomAreaViewBinder {
                         view.context.resources
                             .getDimensionPixelSize(R.dimen.keyguard_affordance_shake_amplitude)
                             .toFloat()
-                    val shakeAnimator =
+                    /*val shakeAnimator =
                         ObjectAnimator.ofFloat(
                             view,
                             "translationX",
@@ -440,7 +440,7 @@ object KeyguardBottomAreaViewBinder {
                     shakeAnimator.interpolator =
                         CycleInterpolator(KeyguardBottomAreaVibrations.ShakeAnimationCycles)
                     shakeAnimator.doOnEnd { view.translationX = 0f }
-                    shakeAnimator.start()
+                    shakeAnimator.start()*/
 
                     vibratorHelper?.vibrate(KeyguardBottomAreaVibrations.Shake)
                 }
