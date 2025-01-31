@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 Paranoid Android
+ * Copyright (C) 2024-2025 Paranoid Android
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.android.server.vibrator;
 
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.hardware.vibrator.IVibrator;
 import android.os.Binder;
 import android.os.IBinder;
@@ -25,49 +26,59 @@ import android.util.Slog;
 import vendor.aac.hardware.richtap.vibrator.IRichtapCallback;
 import vendor.aac.hardware.richtap.vibrator.IRichtapVibrator;
 
+/**
+ * Service class managing RichTap vibrator functionality.
+ */
 public class RichTapVibratorService {
+    private static final String TAG = RichTapVibratorService.class.getSimpleName();
+    private static final String VIBRATOR_DESCRIPTOR = IVibrator.DESCRIPTOR + "/default";
+    private static final boolean DEBUG = false;
 
-    private static final String TAG = "RichTapVibratorService";
-    private static final String VIBRATOR_DESCRIPTOR = "android.hardware.vibrator.IVibrator/default";
-
-    private IRichtapCallback mCallback;
+    private final IRichtapCallback mCallback;
     private volatile IRichtapVibrator sRichtapVibratorService = null;
 
-    private IRichtapVibrator getRichtapService() {
-        synchronized (RichTapVibratorService.class) {
-            if (sRichtapVibratorService == null) {
-                Slog.d(TAG, "vibratorDescriptor:" + VIBRATOR_DESCRIPTOR);
-                IVibrator vibratorHalService = IVibrator.Stub.asInterface(ServiceManager.getService(VIBRATOR_DESCRIPTOR));
-                if (vibratorHalService == null) {
-                    Slog.d(TAG, "can not get hal service");
-                    return null;
-                }
-                Slog.d(TAG, "vibratorHalService:" + vibratorHalService);
+    @Nullable
+    private synchronized IRichtapVibrator getRichtapService() {
+        if (sRichtapVibratorService == null) {
+            if (DEBUG) Slog.d(TAG, "vibratorDescriptor: " + VIBRATOR_DESCRIPTOR);
+
+            IVibrator vibratorHalService = IVibrator.Stub.asInterface(
+                    ServiceManager.getService(VIBRATOR_DESCRIPTOR));
+
+            if (vibratorHalService == null) {
+                Slog.w(TAG, "Failed to get HAL service");
+                return null;
+            }
+
+            if (DEBUG) {
                 try {
-                    Slog.d(TAG, "Capabilities:" + vibratorHalService.getCapabilities());
+                    Slog.d(TAG, "Capabilities: " + vibratorHalService.getCapabilities());
                 } catch (Exception e) {
-                    Slog.d(TAG, "getCapabilities failed", e);
-                }
-                try {
-                    IBinder binder = vibratorHalService.asBinder().getExtension();
-                    if (binder != null) {
-                        sRichtapVibratorService = IRichtapVibrator.Stub.asInterface(Binder.allowBlocking(binder));
-                        binder.linkToDeath(new VibHalDeathRecipient(this), 0);
-                    } else {
-                        sRichtapVibratorService = null;
-                        Slog.e(TAG, "getExtension == null");
-                    }
-                } catch (Exception e) {
-                    Slog.e(TAG, "getExtension fail", e);
+                    Slog.w(TAG, "Failed to get capabilities", e);
                 }
             }
-            return sRichtapVibratorService;
+
+            try {
+                IBinder binder = vibratorHalService.asBinder().getExtension();
+                if (binder != null) {
+                    sRichtapVibratorService = IRichtapVibrator.Stub.asInterface(
+                            Binder.allowBlocking(binder));
+                    binder.linkToDeath(new VibHalDeathRecipient(this), 0);
+                } else {
+                    Slog.e(TAG, "Extension binder is null");
+                }
+            } catch (Exception e) {
+                Slog.e(TAG, "Failed to get extension", e);
+            }
         }
+        return sRichtapVibratorService;
     }
 
-    public RichTapVibratorService() { }
+    public RichTapVibratorService() {
+        this(null);
+    }
 
-    public RichTapVibratorService(IRichtapCallback callback) {
+    public RichTapVibratorService(@Nullable IRichtapCallback callback) {
         mCallback = callback;
     }
 
@@ -75,11 +86,11 @@ public class RichTapVibratorService {
         try {
             IRichtapVibrator service = getRichtapService();
             if (service != null) {
-                Slog.d(TAG, "aac richtap doVibratorOn");
+                if (DEBUG) Slog.d(TAG, "Executing vibratorOn");
                 service.on((int) millis, mCallback);
             }
         } catch (Exception e) {
-            Slog.e(TAG, "aac richtap doVibratorOn fail.", e);
+            Slog.e(TAG, "Failed to execute vibratorOn", e);
         }
     }
 
@@ -87,45 +98,45 @@ public class RichTapVibratorService {
         try {
             IRichtapVibrator service = getRichtapService();
             if (service != null) {
-                Slog.d(TAG, "aac richtap doVibratorSetAmplitude");
+                if (DEBUG) Slog.d(TAG, "Setting amplitude: " + amplitude);
                 service.setAmplitude(amplitude, mCallback);
             }
         } catch (Exception e) {
-            Slog.e(TAG, "aac richtap doVibratorSetAmplitude fail.", e);
+            Slog.e(TAG, "Failed to set amplitude", e);
         }
     }
 
-    public void richTapVibratorOnRawPattern(int[] pattern, int amplitude, int freq) {
+    public void richTapVibratorOnRawPattern(@NonNull int[] pattern, int amplitude, int freq) {
         try {
             IRichtapVibrator service = getRichtapService();
             if (service != null) {
-                Slog.d(TAG, "aac richtap doVibratorOnRawPattern");
+                if (DEBUG) Slog.d(TAG, "Executing raw pattern with amplitude: " +
+                        amplitude + ", freq: " + freq);
                 service.performHe(1, 0, amplitude, freq, pattern, mCallback);
             }
         } catch (Exception e) {
-            Slog.e(TAG, "aac richtap doVibratorOnRawPattern fail.", e);
+            Slog.e(TAG, "Failed to execute raw pattern", e);
         }
     }
 
     void resetHalServiceProxy() {
-        sRichtapVibratorService = null;
+        synchronized (this) {
+            sRichtapVibratorService = null;
+        }
     }
 
-    public static final class VibHalDeathRecipient implements IBinder.DeathRecipient {
-        RichTapVibratorService mRichTapService;
+    private static final class VibHalDeathRecipient implements IBinder.DeathRecipient {
+        private final RichTapVibratorService mRichTapService;
 
-        VibHalDeathRecipient(RichTapVibratorService richtapService) {
+        VibHalDeathRecipient(@NonNull RichTapVibratorService richtapService) {
             mRichTapService = richtapService;
         }
 
         @Override
         public void binderDied() {
-            Slog.d(TAG, "vibrator hal died,should reset hal proxy!!");
-            synchronized (VibHalDeathRecipient.class) {
-                if (mRichTapService != null) {
-                    Slog.d(TAG, "vibrator hal reset hal proxy");
-                    mRichTapService.resetHalServiceProxy();
-                }
+            Slog.w(TAG, "Vibrator HAL died, resetting proxy");
+            synchronized (mRichTapService) {
+                mRichTapService.resetHalServiceProxy();
             }
         }
     }

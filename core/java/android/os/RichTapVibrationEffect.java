@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 Paranoid Android
+ * Copyright (C) 2024-2025 Paranoid Android
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,24 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package android.os;
 
+import android.annotation.Nullable;
 import android.content.res.Resources;
-import android.os.VibrationEffect;
 import android.util.Slog;
 
 import com.android.internal.R;
 
-/** @hide */
-public class RichTapVibrationEffect {
+/**
+ * RichTap vibration effect implementation.
+ * @hide
+ */
+public final class RichTapVibrationEffect {
+    private static final String TAG = RichTapVibrationEffect.class.getSimpleName();
 
-    private static final String TAG = "RichTapVibrationEffect";
+    // Prevent instantiation
+    private RichTapVibrationEffect() {}
 
+    /**
+     * Checks if RichTap vibration is supported on this device.
+     */
     public static boolean isSupported() {
         return Resources.getSystem().getBoolean(R.bool.config_usesRichtapVibration);
     }
 
+    /**
+     * Gets the inner effect pattern for a given vibration effect ID.
+     * @param id The vibration effect ID
+     * @return Array containing the effect pattern, or null if invalid
+     */
+    @Nullable
     public static int[] getInnerEffect(int id) {
         switch (id) {
             case VibrationEffect.EFFECT_CLICK:
@@ -48,11 +61,16 @@ public class RichTapVibrationEffect {
             case VibrationEffect.EFFECT_TEXTURE_TICK:
                 return new int[]{1, 4097, 0, 50, 33, 29, 0, 0, 0, 12, 59, 0, 22, 75, -21, 29, 0, 0, 4097, 30, 100, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
             default:
-                Slog.d(TAG, "Exception encountered!", new IllegalStateException("Unexpected effect id: " + id));
+                Slog.w(TAG, "Invalid effect id: " + id);
                 return null;
         }
     }
 
+    /**
+     * Gets the inner effect strength value for a given strength level.
+     * @param strength The desired effect strength
+     * @return Strength value, or 0 if invalid
+     */
     public static int getInnerEffectStrength(int strength) {
         switch (strength) {
             case VibrationEffect.EFFECT_STRENGTH_LIGHT:
@@ -62,7 +80,7 @@ public class RichTapVibrationEffect {
             case VibrationEffect.EFFECT_STRENGTH_STRONG:
                 return 250;
             default:
-                Slog.e(TAG, "Wrong Effect Strength!!");
+                Slog.e(TAG, "Invalid effect strength: " + strength);
                 return 0;
         }
     }
